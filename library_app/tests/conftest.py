@@ -1,55 +1,46 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from src.models.base import Base
 from src.db.session import get_db
 from src.main import app
 
 
-@pytest.fixture(scope="session")
-def engine():
-    """
-    Crée un moteur SQLAlchemy pour les tests.
-    """
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    return engine
+# Créer une base de données SQLite en mémoire pour les tests
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 @pytest.fixture(scope="function")
-def db_session(engine):
-    """
-    Crée une nouvelle session de base de données pour un test.
-    """
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = sessionmaker(bind=connection)()
+def db_session():
+    # Créer les tables dans la base de données de test
+    Base.metadata.create_all(bind=engine)
 
-    yield session
+    # Créer une session de base de données pour les tests
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-    session.close()
-    transaction.rollback()
-    connection.close()
+    # Supprimer les tables après les tests
+    Base.metadata.drop_all(bind=engine)
 
 
+# Remplacer la dépendance get_db par get_test_db pour les tests
 @pytest.fixture(scope="function")
 def client(db_session):
-    """
-    Crée un client de test pour FastAPI.
-    """
-    def override_get_db():
+    def get_test_db():
         try:
             yield db_session
         finally:
             pass
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_db] = get_test_db
 
     from fastapi.testclient import TestClient
     with TestClient(app) as client:
