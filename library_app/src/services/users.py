@@ -58,7 +58,9 @@ class UserService(BaseService[User, UserCreate, UserUpdate]):
             update_data["hashed_password"] = hashed_password
             del update_data["password"]
 
-        return super().update(db_obj=db_obj, obj_in=update_data)
+        super().update(db_obj=db_obj, obj_in=update_data)
+        self.repository.db.refresh(db_obj)  # <-- Add this line
+        return db_obj
 
     def authenticate(self, *, email: str, password: str) -> Optional[User]:
         """

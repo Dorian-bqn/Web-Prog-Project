@@ -6,6 +6,8 @@ from src.models.loans import Loan as LoanModel
 from src.models.books import Book as BookModel
 from src.models.users import User as UserModel
 from src.repositories.loans import LoanRepository
+from src.repositories.books import BookRepository
+from src.repositories.users import UserRepository
 from src.services.loans import LoanService
 from src.api.schemas.loans import LoanCreate, LoanUpdate
 
@@ -15,8 +17,10 @@ def test_create_loan(db_session: Session):
     Test de création d'un emprunt.
     """
     # Arrange
-    repository = LoanRepository(LoanModel, db_session)
-    service = LoanService(repository)
+    loan_repository = LoanRepository(LoanModel, db_session)
+    book_repository = BookRepository(BookModel, db_session)
+    user_repository = UserRepository(UserModel, db_session)
+    service = LoanService(loan_repository, book_repository, user_repository)
 
     # Créer un utilisateur et un livre pour le test
     user = UserModel(
@@ -63,8 +67,10 @@ def test_get_active_loans_by_user(db_session: Session):
     Test de récupération des emprunts actifs d'un utilisateur.
     """
     # Arrange
-    repository = LoanRepository(LoanModel, db_session)
-    service = LoanService(repository)
+    loan_repository = LoanRepository(LoanModel, db_session)
+    book_repository = BookRepository(BookModel, db_session)
+    user_repository = UserRepository(UserModel, db_session)
+    service = LoanService(loan_repository, book_repository, user_repository)
 
     # Créer un utilisateur et des livres pour le test
     user = UserModel(
@@ -137,8 +143,10 @@ def test_return_loan(db_session: Session):
     Test de retour d'un emprunt.
     """
     # Arrange
-    repository = LoanRepository(LoanModel, db_session)
-    service = LoanService(repository)
+    loan_repository = LoanRepository(LoanModel, db_session)
+    book_repository = BookRepository(BookModel, db_session)
+    user_repository = UserRepository(UserModel, db_session)
+    service = LoanService(loan_repository, book_repository, user_repository)
 
     # Créer un utilisateur et un livre pour le test
     user = UserModel(
@@ -192,8 +200,10 @@ def test_extend_loan(db_session: Session):
     Test de prolongation d'un emprunt.
     """
     # Arrange
-    repository = LoanRepository(LoanModel, db_session)
-    service = LoanService(repository)
+    loan_repository = LoanRepository(LoanModel, db_session)
+    book_repository = BookRepository(BookModel, db_session)
+    user_repository = UserRepository(UserModel, db_session)
+    service = LoanService(loan_repository, book_repository, user_repository)
 
     # Créer un utilisateur et un livre pour le test
     user = UserModel(
@@ -232,7 +242,7 @@ def test_extend_loan(db_session: Session):
     db_session.refresh(loan)
 
     # Act
-    extended_loan = service.extend_loan(loan_id=loan.id, days=7)
+    extended_loan = service.extend_loan(loan_id=loan.id, extension_days=7)
 
     # Assert
     assert extended_loan.id == loan.id
@@ -249,8 +259,10 @@ def test_get_overdue_loans(db_session: Session):
     Test de récupération des emprunts en retard.
     """
     # Arrange
-    repository = LoanRepository(LoanModel, db_session)
-    service = LoanService(repository)
+    loan_repository = LoanRepository(LoanModel, db_session)
+    book_repository = BookRepository(BookModel, db_session)
+    user_repository = UserRepository(UserModel, db_session)
+    service = LoanService(loan_repository, book_repository, user_repository)
 
     # Créer un utilisateur et des livres pour le test
     user = UserModel(

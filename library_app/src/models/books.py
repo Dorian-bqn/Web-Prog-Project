@@ -11,6 +11,9 @@ class Book(Base):
     publication_year = Column(Integer, nullable=False)
     description = Column(Text, nullable=True)
     quantity = Column(Integer, nullable=False, default=0)
+    publisher = Column(String(100), nullable=True)
+    language = Column(String(50), nullable=True)
+    pages = Column(Integer, nullable=True)
 
     # Relations
     loans = relationship("Loan", back_populates="book", cascade="all, delete-orphan")

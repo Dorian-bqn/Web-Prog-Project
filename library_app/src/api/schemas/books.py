@@ -13,7 +13,15 @@ class BookBase(BaseModel):
 
 
 class BookCreate(BookBase):
-    pass
+    title: str
+    author: str
+    isbn: str
+    publication_year: int
+    description: Optional[str] = None
+    quantity: int
+    publisher: Optional[str] = None
+    language: Optional[str] = None
+    pages: Optional[int] = None
 
 
 class BookUpdate(BaseModel):

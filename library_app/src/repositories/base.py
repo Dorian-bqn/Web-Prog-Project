@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from ..models.base import Base
 
+import dateutil.parser
+
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
@@ -38,6 +40,11 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         Crée un nouvel objet.
         """
         obj_in_data = jsonable_encoder(obj_in)
+        if self.model.__name__.lower() == "loan":
+            for field in ["loan_date", "due_date", "return_date"]:
+                if field in obj_in_data and isinstance(obj_in_data[field], str):
+                    obj_in_data[field] = dateutil.parser.parse(obj_in_data[field])
+
         db_obj = self.model(**obj_in_data)
         self.db.add(db_obj)
         self.db.commit()

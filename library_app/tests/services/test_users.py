@@ -87,10 +87,11 @@ def test_update_user(db_session: Session):
 
     # Mise à jour avec mot de passe
     user_update = UserUpdate(password="newpassword123")
+    old_hash = user.hashed_password  # <-- Store the old hash before update
     updated_user = service.update(db_obj=updated_user, obj_in=user_update)
 
     assert updated_user.id == user.id
-    assert updated_user.hashed_password != user.hashed_password
+    assert updated_user.hashed_password != old_hash  # <-- Compare to the old hash
 
     # Vérifier que le nouveau mot de passe fonctionne
     authenticated_user = service.authenticate(email="update@example.com", password="newpassword123")

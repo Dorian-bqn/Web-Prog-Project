@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -11,6 +11,7 @@ class Loan(Base):
     loan_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     return_date = Column(DateTime, nullable=True)
     due_date = Column(DateTime, nullable=False)
+    extended = Column(Boolean, nullable=False, default=False)
 
     # Relations
     user = relationship("User", back_populates="loans")

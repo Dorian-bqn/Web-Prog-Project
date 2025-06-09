@@ -57,3 +57,6 @@ class BookService(BaseService[Book, BookCreate, BookUpdate]):
             raise ValueError("La quantité ne peut pas être négative")
 
         return self.repository.update(db_obj=book, obj_in={"quantity": new_quantity})
+
+    def search(self, query: str):
+        return self.repository.search(query)

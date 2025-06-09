@@ -33,6 +33,15 @@ class LoanService(BaseService[Loan, LoanCreate, LoanUpdate]):
         """
         return self.loan_repository.get_active_loans()
 
+    def get_active_loans_by_user(self, user_id: int):
+        """
+        Récupère les emprunts actifs (non retournés) d'un utilisateur.
+        """
+        return [
+            loan for loan in self.repository.get_loans_by_user(user_id=user_id)
+            if loan.return_date is None
+        ]
+
     def get_overdue_loans(self) -> List[Loan]:
         """
         Récupère les emprunts en retard.
@@ -156,6 +165,9 @@ class LoanService(BaseService[Loan, LoanCreate, LoanUpdate]):
 
         # Prolonger l'emprunt
         new_due_date = loan.due_date + timedelta(days=extension_days)
-        loan_data = {"due_date": new_due_date}
+        loan_data = {
+            "due_date": new_due_date,
+            "extended": True
+        }
 
         return self.loan_repository.update(db_obj=loan, obj_in=loan_data)

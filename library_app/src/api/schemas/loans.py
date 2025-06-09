@@ -12,7 +12,11 @@ class LoanBase(BaseModel):
 
 
 class LoanCreate(LoanBase):
-    pass
+    user_id: int
+    book_id: int
+    loan_date: datetime
+    due_date: datetime
+    return_date: Optional[datetime] = None
 
 
 class LoanUpdate(BaseModel):
