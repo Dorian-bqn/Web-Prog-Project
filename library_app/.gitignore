@@ -1,6 +1,9 @@
 # pycache
-__pycache__/
+*.pyc
 
 # Environments
 .env
 venv/
+
+# db
+*.db
