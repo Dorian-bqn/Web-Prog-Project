@@ -18,7 +18,7 @@ const App = {
     // Charge une page spécifique
     loadPage: function(page) {
         // Vérifier si la page nécessite une authentification
-        const authRequiredPages = ['books', 'profile'];
+        const authRequiredPages = ['books', 'profile', 'loan_management', 'user_loans'];
         if (authRequiredPages.includes(page) && !Auth.isAuthenticated()) {
             UI.showMessage('Vous devez être connecté pour accéder à cette page', 'error');
             page = 'login';
@@ -37,6 +37,12 @@ const App = {
                 break;
             case 'profile':
                 this.loadProfilePage();
+                break;
+            case 'loan_management': 
+                this.loadLoanManagementPage();
+                break;
+            case 'user_loans': 
+                this.loadUserLoansPage();
                 break;
             default:
                 this.loadLoginPage();
@@ -234,6 +240,7 @@ const App = {
 
         try {
             const book = await Api.getBook(bookId);
+            const user = Auth.getUser();
 
             const html = `
                 <div class="book-details">
@@ -247,9 +254,11 @@ const App = {
                         <p><strong>Pages:</strong> ${book.pages || 'Non spécifié'}</p>
                         <p><strong>Quantité disponible:</strong> ${book.quantity}</p>
                     </div>
-                    <div class="book-description">
-                        <h3>Description</h3>
-                        <p>${book.description || 'Aucune description disponible.'}</p>
+                   <div class="book-actions">
+                        ${book.quantity > 0 && user && user.is_admin ? 
+                        `<button class="btn mt-20" onclick="App.borrowBook(${book.id}, ${user.id})">Emprunter</button>` : 
+                        `<p class="mt-20 text-gray-500">${book.quantity === 0 ? 'Ce livre n\'est plus disponible.' : ''}</p>`
+                        }
                     </div>
                     <button class="btn mt-20" onclick="App.loadPage('books')">Retour à la liste</button>
                 </div>
@@ -262,6 +271,8 @@ const App = {
                 <p>Erreur lors du chargement des détails du livre. Veuillez réessayer.</p>
                 <button class="btn mt-20" onclick="App.loadPage('books')">Retour à la liste</button>
             `);
+        } finally {
+            UI.hideLoading();
         }
     },
 
@@ -273,12 +284,6 @@ const App = {
     
             let html = `
                 <h2 class="mb-20">Résultats de la recherche</h2>
-
-                <!-- Search Bar -->
-                <div class="search-container">
-                    <input type="text" id="search-query" class="form-control" placeholder="Rechercher un livre...">
-                    <button id="search-button" class="btn">Rechercher</button>
-                </div>
 
                 <div class="card-container">
             `;
@@ -480,6 +485,177 @@ const App = {
                 console.error('Erreur lors de la mise à jour du mot de passe:', error);
             }
         });
+    },
+
+    // Handles borrowing a book for a specific user
+    borrowBook: async function(bookId, userId) {
+        // userId is explicitly passed now as per backend requirement
+        if (!userId) {
+            UI.showMessage('Impossible d\'emprunter : Informations utilisateur manquantes.', 'error');
+            return;
+        }
+
+        try {
+            await Api.borrowBook(userId, bookId); // Pass userId to API call
+            UI.showMessage('Livre emprunté avec succès', 'success');
+            this.loadPage('books'); // Redirect to books page or user loans
+        } catch (error) {
+            // Error message already handled by Api.call
+            console.error('Erreur lors de l\'emprunt du livre:', error);
+        }
+    },
+    
+    // Handles returning a book
+    returnBook: async function(loanId) {
+        try {
+            await Api.returnBook(loanId);
+            UI.showMessage('Livre retourné avec succès', 'success');
+            // Reload the loan management page or user loans page
+            const user = Auth.getUser();
+            if (user && user.is_admin) {
+                this.loadPage('loan_management');
+            } else {
+                this.loadPage('user_loans');
+            }
+        } catch (error) {
+            // Error message already handled by Api.call
+            console.error('Erreur lors du retour du livre:', error);
+        }
+    },
+
+    // Handles extending a loan
+    extendLoan: async function(loanId, extensionDays = 7) {
+        try {
+            await Api.extendLoan(loanId, extensionDays);
+            UI.showMessage(`Emprunt prolongé de ${extensionDays} jours avec succès`, 'success');
+            // Reload the loan management page
+            const user = Auth.getUser();
+            if (user && user.is_admin) {
+                this.loadPage('loan_management');
+            } else {
+                UI.showMessage('Seuls les administrateurs peuvent prolonger les emprunts.', 'error');
+                this.loadPage('user_loans'); // Or just reload the user's loans to reflect potential changes
+            }
+        } catch (error) {
+            // Error message already handled by Api.call
+            console.error('Erreur lors de la prolongation de l\'emprunt:', error);
+        }
+    },
+
+    // Loads the page displaying loans for the current user
+    loadUserLoansPage: async function() {
+        UI.showLoading();
+    
+        try {
+            // Fetch the user's loans
+            const loans = await Api.getUserLoans();
+            
+            // Fetch the list of books
+            const booksResponse = await Api.getBooks();
+            const books = booksResponse.items;  // Extract the books array
+    
+            let html = `
+                <h2 class="mb-20">Mes Emprunts</h2>
+                <div class="loan-container">
+            `;
+    
+            // Check if the user has no loans
+            if (loans.length === 0) {
+                html += `<p>Aucun emprunt en cours.</p>`;
+            } else {
+                // Iterate over each loan and display its details
+                loans.forEach(loan => {
+                    const returnDate = loan.return_date ? new Date(loan.return_date).toLocaleDateString() : 'Non retourné';
+                    const isOverdue = !loan.return_date && new Date(loan.due_date) < new Date();
+                    const loanStatusClass = isOverdue ? 'text-red-500' : '';
+    
+                    // Find the corresponding book using book_id from the books array
+                    const book = books.find(b => b.id === loan.book_id);
+    
+                    html += `
+                        <div class="loan-card">
+                            <h3>Livre: ${book ? book.title : 'Livre non trouvé'}</h3> <!-- Book title -->
+                            <p><strong>Auteur:</strong> ${book ? book.author : 'Auteur inconnu'}</p> <!-- Book author -->
+                            <p><strong>Date d'emprunt:</strong> ${new Date(loan.loan_date).toLocaleDateString()}</p>
+                            <p class="${loanStatusClass}"><strong>Date limite:</strong> ${new Date(loan.due_date).toLocaleDateString()}</p>
+                            <p><strong>Date de retour:</strong> ${returnDate}</p>
+                            <div class="loan-actions mt-20">
+                            <!-- Display the "Retourner" button if the book is not returned -->
+                            ${!loan.return_date ? `<button class="btn mt-20" onclick="App.returnBook(${loan.id})">Retourner</button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+    
+            html += `</div>`;  // Close the loan container
+            UI.setContent(html); // Set the generated HTML as the page content
+    
+        } catch (error) {
+            console.error('Erreur lors du chargement des emprunts:', error);
+            UI.setContent(`<p>Erreur lors du chargement des emprunts. Veuillez réessayer.</p>`);
+        } finally {
+            UI.hideLoading();  // Hide the loading indicator after processing
+        }
+    },
+    
+
+    // NEW: Loads the page for all loan management (typically for admin)
+    loadLoanManagementPage: async function() {
+        UI.showLoading();
+        const user = Auth.getUser();
+
+        if (!user || !user.is_admin) {
+            UI.showMessage('Accès non autorisé. Seuls les administrateurs peuvent gérer les emprunts.', 'error');
+            this.loadPage('books'); // Redirect if not admin
+            return;
+        }
+
+        try {
+            const loans = await Api.getLoans(); // Fetch all loans
+            const booksResponse = await Api.getBooks(); // Get books data
+            const books = booksResponse.items;
+    
+            let html = `
+                <h2 class="mb-20">Gestion des Emprunts</h2>
+                <div class="loan-container">
+            `;
+    
+            if (loans.length === 0) {
+                html += `<p>Aucun emprunt enregistré.</p>`;
+            } else {
+                loans.forEach(loan => {
+                    const returnDate = loan.return_date ? new Date(loan.return_date).toLocaleDateString() : 'Non retourné';
+                    const isOverdue = !loan.return_date && new Date(loan.due_date) < new Date();
+                    const loanStatusClass = isOverdue ? 'text-red-500 font-bold' : '';
+
+                    const book = books.find(b => b.id === loan.book_id);
+
+                    html += `
+                        <div class="loan-card">
+                            <h3>Livre: ${book ? book.title : 'Livre non trouvé'}</h3>
+                            <p><strong>Date d'emprunt:</strong> ${new Date(loan.loan_date).toLocaleDateString()}</p>
+                            <p class="${loanStatusClass}"><strong>Date limite:</strong> ${new Date(loan.due_date).toLocaleDateString()}</p>
+                            <p><strong>Date de retour:</strong> ${returnDate}</p>
+                            <div class="loan-actions mt-20">
+                                ${!loan.return_date ? `
+                                    <button class="btn btn-secondary mr-10" onclick="App.returnBook(${loan.id})">Retourner</button>
+                                    <button class="btn" onclick="App.extendLoan(${loan.id})">Prolonger (7 jours)</button>
+                                ` : '<p class="text-green-600">Livre retourné</p>'}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+    
+            html += `</div>`;
+            UI.setContent(html);
+        } catch (error) {
+            console.error('Erreur lors du chargement de la gestion des emprunts:', error);
+            UI.setContent(`<p>Erreur lors du chargement de la gestion des emprunts. Veuillez réessayer.</p>`);
+        } finally {
+            UI.hideLoading();
+        }
     }
 };
 

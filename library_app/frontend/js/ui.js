@@ -52,6 +52,13 @@ const UI = {
             const listItem = link.parentElement;
             listItem.classList.toggle('hidden', isAuthenticated);
         });
+
+        document.querySelectorAll('.nav-link.admin-only').forEach(link => {
+            // Le lien 'admin-only' est visible si l'utilisateur est authentifié ET administrateur
+            const isAdmin = isAuthenticated && user && user.is_admin;
+            link.classList.toggle('hidden', !isAdmin);
+        });
+
     },
 
     // Affiche un message à l'utilisateur

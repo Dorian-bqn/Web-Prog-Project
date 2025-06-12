@@ -122,5 +122,47 @@ const Api = {
         const id = Auth.getUser().id;
     
         return this.call('/users/me', 'PUT', data);
+    },
+
+    borrowBook: async function(userId, bookId, loanPeriodDays = 14) {
+        const data = {
+            user_id: userId,
+            book_id: bookId,
+            loan_period_days: loanPeriodDays
+        };
+        const params = new URLSearchParams();
+        params.append('user_id', userId);
+        params.append('book_id', bookId);
+        params.append('loan_period_days', loanPeriodDays);
+        return this.call(`/loans/?${params.toString()}`, 'POST', data);
+    },    
+    
+    // Marks a specific loan as returned
+    returnBook: async function(loanId) {
+        // Use the generic call function for consistency and error handling
+        return this.call(`/loans/${loanId}/return`, 'POST');
+    },
+
+    // Extends the due date of a specific loan
+    extendLoan: async function(loanId, extensionDays = 7) {
+        const data = {
+            extension_days: extensionDays
+        };
+        // Use the generic call function for consistency and error handling
+        return this.call(`/loans/${loanId}/extend`, 'POST', data);
+    },
+    
+    // Fetches all loans for the current user
+    getUserLoans: async function() {
+        // Get the current user's ID from authentication state
+        const userId = Auth.getUser().id;
+        // Use the generic call function for consistency and error handling
+        return this.call(`/loans/user/${userId}`);
+    },
+
+    // Fetches all loans (typically for admin users)
+    getLoans: async function() {
+        // Use the generic call function for consistency and error handling
+        return this.call(`/loans/`);
     }
 };
